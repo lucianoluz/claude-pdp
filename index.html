@@ -206,7 +206,12 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 // CONFIG — filled in by user once
 // ─────────────────────────────────────────────
 const CONFIG_KEY = 'pdp_gsheets_config';
-let cfg = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null');
+const HARDCODED_CFG = {
+  clientId: '308835955166-f2ahsv1eu7370oq0bbq387o7juevap76.apps.googleusercontent.com',
+  sheetId: '16bRdXJ8YgENoWw59e6DWkjvEozqQddyYMoGvX7qwIn0'
+};
+let cfg = HARDCODED_CFG;
+localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
 // cfg = { clientId, sheetId }
 
 // ─────────────────────────────────────────────
@@ -411,7 +416,7 @@ function getNext() { return SESSIONS.find(s => !done.includes(s.id)) || null; }
 
 function renderMain() {
   const mc = document.getElementById('main-content');
-  if (!cfg) { mc.innerHTML = setupHTML(); return; }
+  // cfg always set — proceed directly
 
   const next = getNext();
   const pct = Math.round(done.length / 48 * 100);
@@ -523,37 +528,16 @@ function showPhase(p) { curPhase = p; render(); }
 // SETUP HTML
 // ─────────────────────────────────────────────
 function setupHTML() {
-  return `<div class="setup-card">
-    <div class="setup-title">Connect Google Sheets sync</div>
-    <div class="setup-desc">One-time setup. Your progress will sync across every device automatically — phone, laptop, tablet — via a Google Sheet you own.</div>
-    <div class="setup-steps">
-      <div class="step"><div class="step-n">1</div><div class="step-t">Go to <strong>console.cloud.google.com</strong> → New Project → name it <strong>Claude PDP</strong></div></div>
-      <div class="step"><div class="step-n">2</div><div class="step-t">Enable the <strong>Google Sheets API</strong> from the API Library</div></div>
-      <div class="step"><div class="step-n">3</div><div class="step-t">Go to <strong>APIs & Services → Credentials → Create Credentials → OAuth client ID</strong>. Choose <strong>Web application</strong>. Add your tracker's file URL to <strong>Authorised JavaScript origins</strong> (e.g. <code>file://</code> for local, or your hosted URL).</div></div>
-      <div class="step"><div class="step-n">4</div><div class="step-t">Create a <strong>Google Sheet</strong>, name it <strong>Claude PDP</strong>. Copy the Sheet ID from the URL (the long string between <code>/d/</code> and <code>/edit</code>).</div></div>
-      <div class="step"><div class="step-n">5</div><div class="step-t">Paste your <strong>OAuth Client ID</strong> and <strong>Sheet ID</strong> below and hit Save.</div></div>
-    </div>
-    <div class="field-row">
-      <input class="field" id="inp-client" type="text" placeholder="OAuth Client ID (ends in .apps.googleusercontent.com)" />
-    </div>
-    <div class="field-row">
-      <input class="field" id="inp-sheet" type="text" placeholder="Google Sheet ID" />
-      <button class="btn-save" onclick="saveConfig()">Save</button>
-    </div>
-    <div class="err-msg" id="cfg-err">Please fill in both fields.</div>
-  </div>`;
+  return '';
 }
-
 function saveConfig() {
-  const clientId = document.getElementById('inp-client').value.trim();
   const sheetId = document.getElementById('inp-sheet').value.trim();
   const err = document.getElementById('cfg-err');
-  if (!clientId || !sheetId) { err.style.display = 'block'; return; }
-  cfg = { clientId, sheetId };
+  if (!sheetId) { err.style.display = 'block'; return; }
+  cfg = { clientId: '308835955166-f2ahsv1eu7370oq0bbq387o7juevap76.apps.googleusercontent.com', sheetId };
   localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
   initGIS();
   render();
-  // show signin button
   const sb = document.getElementById('signin-btn');
   if (sb) sb.style.display = 'flex';
 }
@@ -563,17 +547,14 @@ function saveConfig() {
 // ─────────────────────────────────────────────
 window.addEventListener('load', () => {
   render();
-  if (cfg) {
-    document.getElementById('signin-btn').style.display = 'flex';
-    // wait for GIS to load
-    const waitGIS = setInterval(() => {
-      if (window.google && window.google.accounts) {
-        clearInterval(waitGIS);
-        initGIS();
-      }
-    }, 200);
-  }
-  setSync('', cfg ? 'Not signed in' : 'Setup required');
+  document.getElementById('signin-btn').style.display = 'flex';
+  const waitGIS = setInterval(() => {
+    if (window.google && window.google.accounts) {
+      clearInterval(waitGIS);
+      initGIS();
+    }
+  }, 200);
+  setSync('', 'Sign in to sync across devices');
 });
 </script>
 </body>
