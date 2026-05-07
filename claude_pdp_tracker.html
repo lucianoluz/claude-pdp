@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude PDP — Luciano</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#222;
+  --border:rgba(255,255,255,0.08);--border-hi:rgba(255,255,255,0.15);
+  --text:#f0ede8;--muted:#888880;--dim:#444440;
+  --qe:#1D9E75;--qe-bg:rgba(29,158,117,0.13);
+  --people:#7F77DD;--people-bg:rgba(127,119,221,0.13);
+  --padel:#D85A30;--padel-bg:rgba(216,90,48,0.13);
+  --auto:#EF9F27;--auto-bg:rgba(239,159,39,0.13);
+  --rev:#888780;--rev-bg:rgba(136,135,128,0.13);
+  --r:10px;--rs:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;min-height:100vh}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:260px;flex-shrink:0;background:var(--surface);border-right:.5px solid var(--border);padding:24px 0;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+.main{flex:1;padding:32px 40px;max-width:880px}
+
+/* Sidebar */
+.sb-brand{padding:0 20px 20px;border-bottom:.5px solid var(--border);margin-bottom:16px}
+.sb-title{font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:3px}
+.sb-sub{font-size:11px;color:var(--muted)}
+.ring-wrap{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface2);margin:0 12px 4px;border-radius:var(--r)}
+.ring-val{font-size:22px;font-weight:500}
+.ring-lbl{font-size:11px;color:var(--muted)}
+
+/* Sync status */
+.sync-row{display:flex;align-items:center;gap:7px;padding:8px 16px 14px;font-size:11px;color:var(--muted)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex-shrink:0;transition:background .3s}
+.sync-dot.ok{background:var(--qe)}
+.sync-dot.busy{background:var(--auto);animation:blink 1s infinite}
+.sync-dot.err{background:#E24B4A}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Phase nav */
+.sb-sec{padding:0 12px;margin-bottom:4px}
+.sb-sec-lbl{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;padding:0 8px;margin-bottom:6px}
+.ph-btn{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:var(--rs);cursor:pointer;border:none;background:none;width:100%;text-align:left;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;transition:background .12s,color .12s}
+.ph-btn:hover,.ph-btn.active{background:var(--surface2);color:var(--text)}
+.ph-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ph-cnt{margin-left:auto;font-size:11px;color:var(--dim)}
+
+/* Footer */
+.sb-footer{margin-top:auto;padding:16px 12px 0;border-top:.5px solid var(--border);display:flex;flex-direction:column;gap:8px}
+.connect-btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 12px;border-radius:var(--rs);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;width:100%;border:none;transition:opacity .15s}
+.connect-btn.signin{background:#fff;color:#1a1a1a}
+.connect-btn.signin:hover{opacity:.88}
+.connect-btn.signout{background:var(--surface2);color:var(--muted);border:.5px solid var(--border-hi)}
+.connect-btn.signout:hover{color:var(--text)}
+.ical-btn{display:flex;align-items:center;gap:7px;padding:8px 11px;border-radius:var(--rs);background:var(--auto-bg);color:var(--auto);border:.5px solid rgba(239,159,39,.3);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;width:100%;text-decoration:none;transition:background .15s}
+.ical-btn:hover{background:rgba(239,159,39,.22)}
+
+/* Setup card */
+.setup-card{background:var(--surface);border:.5px solid var(--border-hi);border-radius:var(--r);padding:24px;margin-bottom:28px}
+.setup-title{font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:6px}
+.setup-desc{font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:20px}
+.setup-steps{display:flex;flex-direction:column;gap:11px;margin-bottom:20px}
+.step{display:flex;gap:11px;align-items:flex-start}
+.step-n{width:22px;height:22px;border-radius:50%;background:var(--surface2);border:.5px solid var(--border-hi);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0;margin-top:1px}
+.step-t{font-size:13px;color:var(--muted);line-height:1.5}
+.step-t strong{color:var(--text)}
+.step-t code{font-family:monospace;font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:3px;color:var(--auto)}
+.field-row{display:flex;gap:8px;margin-bottom:8px}
+.field{flex:1;padding:9px 12px;border-radius:var(--rs);border:.5px solid var(--border-hi);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none}
+.field:focus{border-color:var(--people)}
+.btn-save{padding:9px 20px;border-radius:var(--rs);background:var(--text);color:var(--bg);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;border:none;cursor:pointer;transition:opacity .15s}
+.btn-save:hover{opacity:.85}
+.err-msg{font-size:12px;color:#E24B4A;margin-top:4px;display:none}
+
+/* Today banner */
+.today-banner{background:var(--surface);border:.5px solid var(--border-hi);border-radius:var(--r);padding:20px 24px;margin-bottom:28px;display:flex;gap:20px;align-items:flex-start}
+.today-left{flex:1;min-width:0}
+.today-eye{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.today-title{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:8px;line-height:1.2}
+.today-meta{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.today-instr{font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:14px}
+.today-btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn-go{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--rs);background:var(--text);color:var(--bg);font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;border:none;cursor:pointer;text-decoration:none;transition:opacity .15s}
+.btn-go:hover{opacity:.85}
+.btn-check{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--rs);background:none;color:var(--muted);border:.5px solid var(--border-hi);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s}
+.btn-check:hover{border-color:var(--qe);color:var(--qe)}
+.timer-col{flex-shrink:0;display:flex;flex-direction:column;gap:4px}
+.trow{display:flex;align-items:center;gap:8px}
+.tblock{height:22px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500}
+.tname{font-size:10px;color:var(--dim);white-space:nowrap}
+.timer-lbl{font-size:10px;color:var(--dim);text-align:center;margin-bottom:2px}
+
+/* Phase header */
+.ph-hdr{margin-bottom:20px}
+.ph-hdr-title{font-family:'DM Serif Display',serif;font-size:19px;margin-bottom:4px}
+.ph-hdr-desc{font-size:12px;color:var(--muted);line-height:1.6}
+
+/* Session list */
+.wk-group{margin-bottom:26px}
+.wk-label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.wk-label::after{content:'';flex:1;height:.5px;background:var(--border)}
+.srow{display:flex;align-items:flex-start;gap:13px;padding:11px 15px;border-radius:var(--rs);border:.5px solid var(--border);background:var(--surface);margin-bottom:5px;cursor:pointer;transition:border-color .15s}
+.srow:hover{border-color:var(--border-hi)}
+.srow.done{background:rgba(29,158,117,.06);border-color:rgba(29,158,117,.18);opacity:.65}
+.srow.is-next{border-color:var(--muted)}
+.chk{width:19px;height:19px;border-radius:50%;border:1.5px solid var(--border-hi);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;background:none;transition:all .15s;margin-top:1px}
+.chk:hover{border-color:var(--qe)}
+.chk.done{background:var(--qe);border-color:var(--qe)}
+.chk svg{display:none}.chk.done svg{display:block}
+.sc{flex:1;min-width:0}
+.s-top{display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap}
+.s-day{font-size:10px;color:var(--dim)}
+.s-title{font-size:13px;font-weight:500}
+.s-title.x{text-decoration:line-through;opacity:.45}
+.pill{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+.next-tag{font-size:10px;color:var(--auto);font-weight:500}
+.s-instr{font-size:12px;color:var(--muted);line-height:1.6;margin-top:5px;display:none}
+.s-acts{display:none;gap:8px;margin-top:8px;flex-wrap:wrap}
+.srow.open .s-instr{display:block}
+.srow.open .s-acts{display:flex}
+.lnk{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);padding:3px 9px;border:.5px solid var(--border-hi);border-radius:20px;text-decoration:none;transition:color .15s,border-color .15s}
+.lnk:hover{color:var(--text);border-color:var(--muted)}
+.done-btn{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 10px;border:.5px solid rgba(29,158,117,.4);border-radius:20px;background:none;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif;transition:all .15s}
+.done-btn:hover{background:var(--qe);color:#fff;border-color:var(--qe)}
+.srow.done .done-btn{background:var(--qe);color:#fff;border-color:var(--qe);pointer-events:none}
+
+@media(max-width:700px){.sidebar{display:none}.main{padding:20px 16px}.today-banner{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-title">Claude PDP</div>
+      <div class="sb-sub">Luciano · 12 weeks · 8:30am</div>
+    </div>
+
+    <div class="ring-wrap">
+      <svg width="48" height="48" viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="3.5"/>
+        <circle id="ring" cx="24" cy="24" r="20" fill="none" stroke="#1D9E75" stroke-width="3.5"
+          stroke-dasharray="125.6" stroke-dashoffset="125.6" stroke-linecap="round"
+          transform="rotate(-90 24 24)" style="transition:stroke-dashoffset .6s ease"/>
+      </svg>
+      <div>
+        <div class="ring-val" id="ring-pct">0%</div>
+        <div class="ring-lbl"><span id="done-ct">0</span> / 48 sessions</div>
+      </div>
+    </div>
+
+    <div class="sync-row">
+      <div class="sync-dot" id="sdot"></div>
+      <span id="slbl">Not signed in</span>
+    </div>
+
+    <div class="sb-sec">
+      <div class="sb-sec-lbl">Phases</div>
+      <button class="ph-btn active" id="btn-all" onclick="showPhase('all')">
+        <div class="ph-dot" style="background:var(--rev)"></div>All sessions<span class="ph-cnt">48</span>
+      </button>
+      <button class="ph-btn" id="btn-1" onclick="showPhase(1)">
+        <div class="ph-dot" style="background:var(--qe)"></div>Foundation<span class="ph-cnt">12</span>
+      </button>
+      <button class="ph-btn" id="btn-2" onclick="showPhase(2)">
+        <div class="ph-dot" style="background:var(--people)"></div>Applied<span class="ph-cnt">16</span>
+      </button>
+      <button class="ph-btn" id="btn-3" onclick="showPhase(3)">
+        <div class="ph-dot" style="background:var(--padel)"></div>Advanced<span class="ph-cnt">12</span>
+      </button>
+      <button class="ph-btn" id="btn-4" onclick="showPhase(4)">
+        <div class="ph-dot" style="background:var(--auto)"></div>Automation<span class="ph-cnt">8</span>
+      </button>
+    </div>
+
+    <div class="sb-footer">
+      <button class="connect-btn signin" id="signin-btn" onclick="signIn()" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Sign in with Google
+      </button>
+      <button class="connect-btn signout" id="signout-btn" onclick="signOut()" style="display:none">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
+      </button>
+      <a class="ical-btn" href="claude_pdp_schedule.ics" download>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Calendar file (48 events)
+      </a>
+    </div>
+  </aside>
+
+  <main class="main" id="main-content">
+    <!-- filled by JS -->
+  </main>
+</div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG — filled in by user once
+// ─────────────────────────────────────────────
+const CONFIG_KEY = 'pdp_gsheets_config';
+let cfg = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null');
+// cfg = { clientId, sheetId }
+
+// ─────────────────────────────────────────────
+// SESSION DATA
+// ─────────────────────────────────────────────
+const SESSIONS = [
+  {id:0,w:1,p:1,day:"Mon",title:"Intro to Claude AI",track:"QE",url:"https://anthropic.skilljar.com/",instr:"Watch the first module of Anthropic's free Intro to Claude AI course. Focus on how Claude reasons differently from a search engine. Apply: open Claude and ask it to summarize a real QE defect you're working on right now."},
+  {id:1,w:1,p:1,day:"Tue",title:"Prompt fundamentals",track:"QE",url:"https://anthropic.skilljar.com/",instr:"Complete the Prompt Engineering Fundamentals module on Anthropic Academy. Focus on clear instructions and context-setting. Apply: rewrite one of your Jira ticket descriptions using the structured prompt techniques you just learned."},
+  {id:2,w:1,p:1,day:"Thu",title:"Business integration",track:"People",url:"https://www.coursera.org/courses?query=claude",instr:"Start Master Claude AI — Business Integration on Coursera. Watch the workplace prompting module. Apply: draft a short performance review note for one of your direct reports using Claude."},
+  {id:3,w:1,p:1,day:"Fri",title:"Apply: draft review",track:"People",url:"https://claude.ai",instr:"Open Claude and write a full performance review narrative for one team member. Use: 'You are an experienced engineering manager helping me write a balanced, constructive performance review.' Save the output."},
+  {id:4,w:2,p:1,day:"Mon",title:"Prompt engineering deep dive",track:"QE",url:"https://anthropic.skilljar.com/",instr:"Continue Prompt Engineering Fundamentals — focus on chain-of-thought prompting. Apply: use chain-of-thought to analyze your last sprint's defect trends."},
+  {id:5,w:2,p:1,day:"Tue",title:"Role + chain-of-thought",track:"QE",url:"https://anthropic.skilljar.com/",instr:"Practice combining role prompting with chain-of-thought. Try: 'You are a senior QE lead. Think step by step about release risks given these open defects: [list].' Apply to a real upcoming release."},
+  {id:6,w:2,p:1,day:"Thu",title:"Padel comms prompts",track:"Padel",url:"https://claude.ai",instr:"Build 3 reusable templates for The Padel Zone: (1) parent update email, (2) drill session description, (3) clinic registration announcement. Test each in Claude and save your best versions."},
+  {id:7,w:2,p:1,day:"Fri",title:"Apply: clinic email",track:"Padel",url:"https://claude.ai",instr:"Use your Padel Zone prompt templates to generate this week's parent update email for the Junior Academy. Send it or use it. Refine the template based on what worked."},
+  {id:8,w:3,p:1,day:"Mon",title:"Output structuring",track:"QE",url:"https://anthropic.skilljar.com/",instr:"Study how to control Claude's output format — tables, JSON, markdown. Apply: ask Claude to produce a release risk summary as a structured table with columns: Component, Risk Level, Mitigation."},
+  {id:9,w:3,p:1,day:"Tue",title:"LinkedIn LLM course",track:"People",url:"https://www.linkedin.com/learning/topics/claude",instr:"Complete Introduction to Prompt Engineering for Generative AI on LinkedIn Learning (first 15 min today). Focus on framing prompts for management communication."},
+  {id:10,w:3,p:1,day:"Thu",title:"Phase 1 review",track:"All",url:"https://claude.ai",instr:"Open Claude and teach it back: explain the top 3 prompting techniques you've learned as if briefing a new QE engineer. If you can explain it clearly, you own it. Note any gaps."},
+  {id:11,w:3,p:1,day:"Fri",title:"Apply: all 3 domains",track:"All",url:"https://claude.ai",instr:"Run one real prompt from each domain: (1) QE — defect summary, (2) People — team communication, (3) Padel — session plan. Compare quality vs Week 1."},
+  {id:12,w:4,p:2,day:"Mon",title:"Claude Code intro",track:"QE",url:"https://anthropic.skilljar.com/claude-code-in-action",instr:"Start Claude Code in Action on Anthropic Academy. Watch the architecture overview. Apply: describe your Karate Framework test structure to Claude and ask for improvement suggestions."},
+  {id:13,w:4,p:2,day:"Tue",title:"Context management",track:"QE",url:"https://anthropic.skilljar.com/claude-code-in-action",instr:"Continue Claude Code in Action — context management module. Apply: start a multi-turn QE analysis conversation and keep context coherent across 5+ turns."},
+  {id:14,w:4,p:2,day:"Thu",title:"Claude Projects setup",track:"People",url:"https://claude.ai",instr:"Set up your first Claude Project. Create 'QE Management' with: team structure doc, defect categories, and communication tone guide. Test it with a real question."},
+  {id:15,w:4,p:2,day:"Fri",title:"Apply: QE Project",track:"QE",url:"https://claude.ai",instr:"Use your QE Project for a real task — defect triage, sprint summary, or stakeholder email. Notice how persistent context changes response quality."},
+  {id:16,w:5,p:2,day:"Mon",title:"GitHub integration",track:"QE",url:"https://anthropic.skilljar.com/claude-code-in-action",instr:"Claude Code in Action — GitHub workflow integration. Apply: sketch a plan for AI-assisted PR review in your CMS team."},
+  {id:17,w:5,p:2,day:"Tue",title:"Data analysis with Claude",track:"QE",url:"https://www.linkedin.com/learning/topics/claude",instr:"Watch Hands-On Data Analysis with Claude on LinkedIn Learning (first 15 min). Apply: drop a Jira defect CSV into Claude and ask for a severity trend summary."},
+  {id:18,w:5,p:2,day:"Thu",title:"Claude Cowork",track:"People",url:"https://www.linkedin.com/learning/topics/claude",instr:"Complete Everyday Productivity with Claude Cowork (23 min — all today). Apply: add your direct report list to your QE Project."},
+  {id:19,w:5,p:2,day:"Fri",title:"Apply: sprint metrics",track:"QE",url:"https://claude.ai",instr:"Take your last sprint's defect data and run a full analysis in your QE Project. Produce: (1) trend summary, (2) top 3 risks, (3) recommendation for Vinay/Venkat. Real output, not practice."},
+  {id:20,w:6,p:2,day:"Mon",title:"AI for CI/CD context",track:"QE",url:"https://www.linkedin.com/learning/topics/claude",instr:"Watch Build with AI: Generate an API with CI/CD in Claude Code. Identify one CMS release step where Claude could reduce manual effort."},
+  {id:21,w:6,p:2,day:"Tue",title:"Content generation",track:"Padel",url:"https://www.coursera.org/courses?query=claude",instr:"Start AI-Powered Content Generation on Coursera. Apply: generate 3 versions of a clinic promotion for The Padel Zone and compare tone."},
+  {id:22,w:6,p:2,day:"Thu",title:"Padel content pipeline",track:"Padel",url:"https://claude.ai",instr:"Build a repeatable workflow: input = clinic theme + age group → output = drill description + parent email + social post. Test with your next upcoming clinic."},
+  {id:23,w:6,p:2,day:"Fri",title:"Apply: clinic social post",track:"Padel",url:"https://claude.ai",instr:"Use your content pipeline to generate this week's Padel Zone social post. Post it. Refine the template based on the result."},
+  {id:24,w:7,p:2,day:"Mon",title:"Multi-turn workflows",track:"QE",url:"https://claude.ai",instr:"Practice a full multi-turn QE workflow: ticket review → test strategy → risk assessment → sign-off recommendation. Run it on a real upcoming CMS release."},
+  {id:25,w:7,p:2,day:"Tue",title:"People mgmt prompts",track:"People",url:"https://claude.ai",instr:"Build 5 reusable people management prompts: (1) 1:1 prep, (2) constructive feedback, (3) team announcement, (4) escalation email, (5) recognition message. Save in your Claude Project."},
+  {id:26,w:7,p:2,day:"Thu",title:"Phase 2 review",track:"All",url:"https://claude.ai",instr:"Ask Claude: 'Based on these workflows I've built [describe them], what gaps do I still have?' Use the answer to prioritize Phase 3 focus areas."},
+  {id:27,w:7,p:2,day:"Fri",title:"Apply: full workflow",track:"All",url:"https://claude.ai",instr:"Run one end-to-end workflow in each domain: QE sprint summary, people management email, Padel Zone session plan. This is your Phase 2 capstone."},
+  {id:28,w:8,p:3,day:"Mon",title:"MCP fundamentals",track:"QE",url:"https://anthropic.skilljar.com/",instr:"Start MCP Skills for Claude Code on Anthropic Academy. Learn what MCP is and how it connects Claude to external tools. Identify 2 systems in your QE workflow you'd want to connect (e.g. Jira, GitHub)."},
+  {id:29,w:8,p:3,day:"Tue",title:"Tool integration",track:"QE",url:"https://anthropic.skilljar.com/",instr:"Continue MCP — tool integration module. Learn how Claude calls external APIs. Sketch the tool schema for a Claude agent that reads and categorizes Jira tickets."},
+  {id:30,w:8,p:3,day:"Thu",title:"Sub-agents intro",track:"Advanced",url:"https://anthropic.skilljar.com/",instr:"Start Sub-agents in Claude Code. Learn how a master Claude delegates to specialist agents. Design a 3-agent architecture for CMS QE: ticket reader, risk assessor, report writer."},
+  {id:31,w:8,p:3,day:"Fri",title:"Apply: MCP prototype",track:"QE",url:"https://claude.ai",instr:"Build a simple MCP prototype: manually feed Claude Jira data (copy/paste is fine) and have it produce a structured release risk report. This is your proof of concept."},
+  {id:32,w:9,p:3,day:"Mon",title:"Agent schema design",track:"QE",url:"https://www.coursera.org/courses?query=claude",instr:"Start Building Autonomous Claude Agents on Coursera — schema creation module. Apply: write a JSON schema for a QE defect triage tool with input fields and expected output."},
+  {id:33,w:9,p:3,day:"Tue",title:"Scrimba vibe coding",track:"Dev",url:"https://scrimba.com/articles/best-claude-code-tutorials-and-courses-in-2026/",instr:"Start Vibe Coding with Claude Code on Scrimba. Use the interactive editor — don't just watch. Build the first exercise: a simple AI-powered workflow with hooks."},
+  {id:34,w:9,p:3,day:"Thu",title:"Multi-agent routing",track:"Advanced",url:"https://anthropic.skilljar.com/",instr:"Continue sub-agents — routing patterns. Learn parallel vs sequential agents. Refine your 3-agent QE architecture with explicit routing logic."},
+  {id:35,w:9,p:3,day:"Fri",title:"Apply: Jira agent prototype",track:"QE",url:"https://claude.ai",instr:"Build a working Jira agent prototype: input = list of open defects, output = risk-tiered go/no-go recommendation. This becomes your N8N automation in Phase 4."},
+  {id:36,w:10,p:3,day:"Mon",title:"API orchestration",track:"Padel",url:"https://www.classcentral.com/subject/claude",instr:"Start Claude API Orchestration on Class Central. Design a 3-step chain for the Padel Zone booking assistant: inquiry → availability check → confirmation draft."},
+  {id:37,w:10,p:3,day:"Tue",title:"Prompt chaining",track:"Advanced",url:"https://www.classcentral.com/subject/claude",instr:"Continue API orchestration — parallel processing. Build a chain that generates drill description + parent email + social post from one input simultaneously."},
+  {id:38,w:10,p:3,day:"Thu",title:"Padel club agent",track:"Padel",url:"https://claude.ai",instr:"Design and test a Padel Zone member inquiry agent. Input: member question. Output: personalized response with availability, pricing, and clinic upsell. Test with 5 real member scenarios."},
+  {id:39,w:10,p:3,day:"Fri",title:"Phase 3 review",track:"All",url:"https://claude.ai",instr:"Review all agents and prototypes. Identify which 2 are most ready to become N8N automations. Document input/output spec for each — you'll need this in Week 11."},
+  {id:40,w:11,p:4,day:"Mon",title:"N8N + Claude API setup",track:"Auto",url:"https://padelzone.app.n8n.cloud/",instr:"Open N8N. Create a new workflow. Add an HTTP Request node → Anthropic API (https://api.anthropic.com/v1/messages). Test with a simple prompt. Confirm your API key is configured. This is your foundation automation node."},
+  {id:41,w:11,p:4,day:"Tue",title:"Sprint report flow",track:"QE",url:"https://padelzone.app.n8n.cloud/",instr:"Build QE Sprint Report in N8N: (1) Jira API fetches open defects, (2) Claude produces risk triage, (3) Gmail emails stakeholders. Run a test with real data."},
+  {id:42,w:11,p:4,day:"Thu",title:"Booking assistant flow",track:"Padel",url:"https://padelzone.app.n8n.cloud/",instr:"Build Padel Zone booking assistant in N8N: (1) form submission trigger, (2) Claude generates confirmation + clinic upsell, (3) Gmail sends to member. Test with a dummy booking."},
+  {id:43,w:11,p:4,day:"Fri",title:"Apply: live N8N run",track:"Auto",url:"https://padelzone.app.n8n.cloud/",instr:"Run both N8N automations with real data. Sprint report → stakeholders. Booking assistant → test yourself. Debug, document, refine."},
+  {id:44,w:12,p:4,day:"Mon",title:"Perf review pipeline",track:"People",url:"https://padelzone.app.n8n.cloud/",instr:"Build performance review automation in N8N: scheduled trigger → Claude drafts narrative per direct report → email draft output. Connect to all 7 direct reports."},
+  {id:45,w:12,p:4,day:"Tue",title:"Release risk digest",track:"QE",url:"https://padelzone.app.n8n.cloud/",instr:"Extend your sprint report into a full release risk digest: add test results + Git summary, Claude produces go/no-go recommendation. Schedule to run every Friday at 4pm automatically."},
+  {id:46,w:12,p:4,day:"Thu",title:"Junior Academy comms",track:"Padel",url:"https://padelzone.app.n8n.cloud/",instr:"Build Junior Academy parent comms in N8N: session completion trigger → Claude generates personalized parent update per player level → Gmail sends. Test with a real Padel Zone session."},
+  {id:47,w:12,p:4,day:"Fri",title:"Capstone: all flows live",track:"All",url:"https://padelzone.app.n8n.cloud/",instr:"All 6 N8N automations should be live: Sprint Report, Booking Assistant, Perf Reviews, Release Digest, Junior Academy Comms, Content Generator. Run each. You are no longer a learner — you are a builder."}
+];
+
+const TC={QE:"var(--qe)",People:"var(--people)",Padel:"var(--padel)",Auto:"var(--auto)",Advanced:"var(--padel)",Dev:"var(--people)",All:"var(--rev)"};
+const TB={QE:"var(--qe-bg)",People:"var(--people-bg)",Padel:"var(--padel-bg)",Auto:"var(--auto-bg)",Advanced:"var(--padel-bg)",Dev:"var(--people-bg)",All:"var(--rev-bg)"};
+const PL={1:"Phase 1 — Foundation",2:"Phase 2 — Applied",3:"Phase 3 — Advanced",4:"Phase 4 — Automation"};
+const PD={1:"Weeks 1–3 · Prompt fluency across QE, People, and Padel.",2:"Weeks 4–7 · Claude Projects, data analysis, and content pipelines.",3:"Weeks 8–10 · MCP, agents, and API orchestration.",4:"Weeks 11–12 · Live N8N + Claude automations in production."};
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let done = JSON.parse(localStorage.getItem('pdp_done') || '[]');
+let curPhase = 'all';
+let accessToken = null;
+let userEmail = null;
+
+// ─────────────────────────────────────────────
+// SYNC STATUS UI
+// ─────────────────────────────────────────────
+function setSync(state, msg) {
+  const d = document.getElementById('sdot');
+  const l = document.getElementById('slbl');
+  if (!d || !l) return;
+  d.className = 'sync-dot' + (state ? ' ' + state : '');
+  l.textContent = msg;
+}
+
+// ─────────────────────────────────────────────
+// GOOGLE SHEETS API
+// ─────────────────────────────────────────────
+const SHEET_NAME = 'Progress';
+const SHEET_RANGE = `${SHEET_NAME}!A:C`;
+
+async function sheetsGet(sheetId) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(SHEET_RANGE)}`;
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!r.ok) throw new Error('Sheets read failed: ' + r.status);
+  const d = await r.json();
+  return d.values || [];
+}
+
+async function sheetsAppend(sheetId, values) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(SHEET_RANGE)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values })
+  });
+  if (!r.ok) throw new Error('Sheets append failed: ' + r.status);
+}
+
+async function sheetsClear(sheetId) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(SHEET_RANGE)}:clear`;
+  const r = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } });
+  if (!r.ok) throw new Error('Sheets clear failed: ' + r.status);
+}
+
+async function loadFromSheets() {
+  if (!accessToken || !cfg) return;
+  setSync('busy', 'Loading...');
+  try {
+    const rows = await sheetsGet(cfg.sheetId);
+    // rows: [[session_id, done, updated_at], ...]
+    // skip header row if present
+    const dataRows = rows.filter(r => r[0] !== 'session_id' && r[0] !== undefined);
+    done = dataRows.filter(r => r[1] === 'TRUE' || r[1] === 'true').map(r => parseInt(r[0])).filter(n => !isNaN(n));
+    localStorage.setItem('pdp_done', JSON.stringify(done));
+    setSync('ok', 'Synced · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    render();
+  } catch (e) {
+    console.error(e);
+    setSync('err', 'Sync error — using local');
+  }
+}
+
+async function saveToSheets() {
+  if (!accessToken || !cfg) return;
+  setSync('busy', 'Saving...');
+  try {
+    // Write header + all done states
+    await sheetsClear(cfg.sheetId);
+    const header = [['session_id', 'done', 'updated_at']];
+    const ts = new Date().toISOString();
+    const rows = SESSIONS.map(s => [String(s.id), String(done.includes(s.id)), ts]);
+    await sheetsAppend(cfg.sheetId, [...header, ...rows]);
+    setSync('ok', 'Saved · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  } catch (e) {
+    console.error(e);
+    setSync('err', 'Save failed');
+  }
+}
+
+// ─────────────────────────────────────────────
+// GOOGLE SIGN-IN (GIS)
+// ─────────────────────────────────────────────
+let tokenClient = null;
+
+function initGIS() {
+  if (!cfg || !window.google) return;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: cfg.clientId,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    callback: (resp) => {
+      if (resp.error) { setSync('err', 'Auth error'); return; }
+      accessToken = resp.access_token;
+      userEmail = ''; // GIS token client doesn't return email directly
+      document.getElementById('signin-btn').style.display = 'none';
+      document.getElementById('signout-btn').style.display = 'flex';
+      setSync('ok', 'Signed in');
+      loadFromSheets();
+    }
+  });
+}
+
+function signIn() {
+  if (!tokenClient) { alert('Please save your configuration first.'); return; }
+  tokenClient.requestAccessToken();
+}
+
+function signOut() {
+  if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
+  accessToken = null;
+  document.getElementById('signin-btn').style.display = 'flex';
+  document.getElementById('signout-btn').style.display = 'none';
+  setSync('', 'Not signed in');
+}
+
+// ─────────────────────────────────────────────
+// TOGGLE DONE
+// ─────────────────────────────────────────────
+async function toggleDone(id, e) {
+  e.stopPropagation();
+  const idx = done.indexOf(id);
+  if (idx > -1) done.splice(idx, 1); else done.push(id);
+  localStorage.setItem('pdp_done', JSON.stringify(done));
+  render();
+  await saveToSheets();
+}
+
+function toggleRow(id) {
+  const el = document.getElementById('row-' + id);
+  if (el) el.classList.toggle('open');
+}
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+function getNext() { return SESSIONS.find(s => !done.includes(s.id)) || null; }
+
+function renderMain() {
+  const mc = document.getElementById('main-content');
+  if (!cfg) { mc.innerHTML = setupHTML(); return; }
+
+  const next = getNext();
+  const pct = Math.round(done.length / 48 * 100);
+  const ring = document.getElementById('ring');
+  if (ring) ring.style.strokeDashoffset = 125.6 - (125.6 * pct / 100);
+  const rp = document.getElementById('ring-pct'); if (rp) rp.textContent = pct + '%';
+  const dc = document.getElementById('done-ct'); if (dc) dc.textContent = done.length;
+
+  // show signin button once cfg is set
+  const sb = document.getElementById('signin-btn');
+  const so = document.getElementById('signout-btn');
+  if (sb && !accessToken) sb.style.display = 'flex';
+  if (so && accessToken) so.style.display = 'flex';
+
+  let html = '';
+
+  // Today banner
+  if (!next) {
+    html += `<div class="today-banner"><div class="today-left"><div class="today-eye">Complete</div><div class="today-title">All 48 sessions done.</div><div class="today-instr">Every automation is live. You built it — congratulations.</div></div></div>`;
+  } else {
+    const tc = TC[next.track] || 'var(--rev)';
+    html += `<div class="today-banner">
+      <div class="today-left">
+        <div class="today-eye">Up next · ${next.day}, Week ${next.w}</div>
+        <div class="today-title">${next.title}</div>
+        <div class="today-meta">
+          <span class="pill" style="background:${TB[next.track]};color:${tc}">${next.track}</span>
+          <span style="font-size:11px;color:var(--dim)">8:30 – 8:55am · 25 min</span>
+          <span style="font-size:11px;color:var(--dim)">${PL[next.p]}</span>
+        </div>
+        <div class="today-instr">${next.instr}</div>
+        <div class="today-btns">
+          <a class="btn-go" href="${next.url}" target="_blank">Open course ↗</a>
+          <button class="btn-check" onclick="toggleDone(${next.id}, event)">Mark done ✓</button>
+        </div>
+      </div>
+      <div class="timer-col">
+        <div class="timer-lbl">Session</div>
+        <div class="trow"><div class="tblock" style="width:40px;background:var(--rev-bg);color:var(--rev)">5 min</div><div class="tname">Activate</div></div>
+        <div class="trow"><div class="tblock" style="width:106px;background:var(--people-bg);color:var(--people)">15 min</div><div class="tname">Learn</div></div>
+        <div class="trow"><div class="tblock" style="width:40px;background:var(--qe-bg);color:var(--qe)">5 min</div><div class="tname">Apply</div></div>
+      </div>
+    </div>`;
+  }
+
+  // Phase header
+  if (curPhase !== 'all') {
+    html += `<div class="ph-hdr"><div class="ph-hdr-title">${PL[curPhase]}</div><div class="ph-hdr-desc">${PD[curPhase]}</div></div>`;
+  }
+
+  // Sessions
+  const items = curPhase === 'all' ? SESSIONS : SESSIONS.filter(s => s.p === curPhase);
+  const weeks = [...new Set(items.map(s => s.w))];
+  weeks.forEach(wk => {
+    const ws = items.filter(s => s.w === wk);
+    html += `<div class="wk-group"><div class="wk-label">Week ${wk}</div>`;
+    ws.forEach(s => {
+      const isDone = done.includes(s.id);
+      const isNext = next && next.id === s.id;
+      const tc = TC[s.track] || 'var(--rev)';
+      html += `<div class="srow${isDone ? ' done' : ''}${isNext ? ' is-next' : ''}" id="row-${s.id}" onclick="toggleRow(${s.id})">
+        <div class="chk${isDone ? ' done' : ''}" onclick="toggleDone(${s.id}, event)">
+          <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="sc">
+          <div class="s-top">
+            <span class="s-day">${s.day}</span>
+            <span class="s-title${isDone ? ' x' : ''}">${s.title}</span>
+            <span class="pill" style="background:${TB[s.track]};color:${tc}">${s.track}</span>
+            ${isNext ? '<span class="next-tag">← next</span>' : ''}
+          </div>
+          <div class="s-instr">${s.instr}</div>
+          <div class="s-acts">
+            <a class="lnk" href="${s.url}" target="_blank" onclick="event.stopPropagation()">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Open course
+            </a>
+            <button class="done-btn" onclick="toggleDone(${s.id}, event)">
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              ${isDone ? 'Done' : 'Mark done'}
+            </button>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  mc.innerHTML = html;
+
+  // update ring after DOM update
+  const r2 = document.getElementById('ring');
+  if (r2) r2.style.strokeDashoffset = 125.6 - (125.6 * pct / 100);
+  const rp2 = document.getElementById('ring-pct'); if (rp2) rp2.textContent = pct + '%';
+  const dc2 = document.getElementById('done-ct'); if (dc2) dc2.textContent = done.length;
+}
+
+function render() {
+  renderMain();
+  // update phase buttons
+  document.querySelectorAll('.ph-btn').forEach(b => b.classList.remove('active'));
+  const ab = document.getElementById(curPhase === 'all' ? 'btn-all' : 'btn-' + curPhase);
+  if (ab) ab.classList.add('active');
+}
+
+function showPhase(p) { curPhase = p; render(); }
+
+// ─────────────────────────────────────────────
+// SETUP HTML
+// ─────────────────────────────────────────────
+function setupHTML() {
+  return `<div class="setup-card">
+    <div class="setup-title">Connect Google Sheets sync</div>
+    <div class="setup-desc">One-time setup. Your progress will sync across every device automatically — phone, laptop, tablet — via a Google Sheet you own.</div>
+    <div class="setup-steps">
+      <div class="step"><div class="step-n">1</div><div class="step-t">Go to <strong>console.cloud.google.com</strong> → New Project → name it <strong>Claude PDP</strong></div></div>
+      <div class="step"><div class="step-n">2</div><div class="step-t">Enable the <strong>Google Sheets API</strong> from the API Library</div></div>
+      <div class="step"><div class="step-n">3</div><div class="step-t">Go to <strong>APIs & Services → Credentials → Create Credentials → OAuth client ID</strong>. Choose <strong>Web application</strong>. Add your tracker's file URL to <strong>Authorised JavaScript origins</strong> (e.g. <code>file://</code> for local, or your hosted URL).</div></div>
+      <div class="step"><div class="step-n">4</div><div class="step-t">Create a <strong>Google Sheet</strong>, name it <strong>Claude PDP</strong>. Copy the Sheet ID from the URL (the long string between <code>/d/</code> and <code>/edit</code>).</div></div>
+      <div class="step"><div class="step-n">5</div><div class="step-t">Paste your <strong>OAuth Client ID</strong> and <strong>Sheet ID</strong> below and hit Save.</div></div>
+    </div>
+    <div class="field-row">
+      <input class="field" id="inp-client" type="text" placeholder="OAuth Client ID (ends in .apps.googleusercontent.com)" />
+    </div>
+    <div class="field-row">
+      <input class="field" id="inp-sheet" type="text" placeholder="Google Sheet ID" />
+      <button class="btn-save" onclick="saveConfig()">Save</button>
+    </div>
+    <div class="err-msg" id="cfg-err">Please fill in both fields.</div>
+  </div>`;
+}
+
+function saveConfig() {
+  const clientId = document.getElementById('inp-client').value.trim();
+  const sheetId = document.getElementById('inp-sheet').value.trim();
+  const err = document.getElementById('cfg-err');
+  if (!clientId || !sheetId) { err.style.display = 'block'; return; }
+  cfg = { clientId, sheetId };
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+  initGIS();
+  render();
+  // show signin button
+  const sb = document.getElementById('signin-btn');
+  if (sb) sb.style.display = 'flex';
+}
+
+// ─────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────
+window.addEventListener('load', () => {
+  render();
+  if (cfg) {
+    document.getElementById('signin-btn').style.display = 'flex';
+    // wait for GIS to load
+    const waitGIS = setInterval(() => {
+      if (window.google && window.google.accounts) {
+        clearInterval(waitGIS);
+        initGIS();
+      }
+    }, 200);
+  }
+  setSync('', cfg ? 'Not signed in' : 'Setup required');
+});
+</script>
+</body>
+</html>
